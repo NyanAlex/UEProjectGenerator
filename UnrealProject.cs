@@ -164,7 +164,7 @@ namespace UEProjectGenerator
 				UEProjectModule projectModule = project.Modules[y];
 				if (!gameModulesName.Contains(projectModule.Name))
 				{
-					project.Modules.RemoveAt(y);
+					project.Modules.RemoveAt(y); // Removing missing modules from project
 				}
 			}
 
@@ -179,13 +179,32 @@ namespace UEProjectGenerator
 			for (int x = 0; x < project.Plugins.Count(); x++)
 			{
 				UEProjectPlugin projectPlugin = project.Plugins[x];
-				if (!gamePluginsName.Contains(projectPlugin.Name) && !uePluginsName.Contains(projectPlugin.Name)) 
+				if (!gamePluginsName.Contains(projectPlugin.Name) && !uePluginsName.Contains(projectPlugin.Name))
 				{
-					project.Plugins.RemoveAt(x);
+					project.Plugins.RemoveAt(x); // Removing missing plugins from project
 				}
-			}
 
-			List<string> modulesForTargetCS = Directory.EnumerateDirectories(newProjectSourcePath, "*", SearchOption.TopDirectoryOnly).ToList();
+				List<string> alreadyUsedUEPlugins = new List<string>();
+
+                foreach (var ueplugin in uePluginsPluginsPath)
+                {
+                    UnrealPlugin unrealPlugin = JsonConvert.DeserializeObject<UnrealPlugin>(File.ReadAllText(ueplugin));
+                    if (unrealPlugin.FriendlyName == projectPlugin.Name && !unrealPlugin.EnabledByDefault)
+                    {
+                        UEProjectPlugin gamePlugin = new UEProjectPlugin();
+                        gamePlugin.Name = unrealPlugin.FriendlyName;
+                        gamePlugin.Enabled = true;
+
+                        if (!alreadyUsedUEPlugins.Contains(gamePlugin.Name))
+                        {
+							alreadyUsedUEPlugins.Add(gamePlugin.Name);
+                            project.Plugins.Add(gamePlugin);
+                        }
+                    }
+                }
+            }
+
+            List<string> modulesForTargetCS = Directory.EnumerateDirectories(newProjectSourcePath, "*", SearchOption.TopDirectoryOnly).ToList();
 
 			string projectTargetCS = "using UnrealBuildTool;\n\npublic class " + Path.GetFileNameWithoutExtension(projectFilePath) + "Target : TargetRules {\n\tpublic " + Path.GetFileNameWithoutExtension(projectFilePath) + "Target(TargetInfo Target) : base(Target) {\n\t\tType = TargetType.Game;" /* + "\n\t\tDefaultBuildSettings = BuildSettingsVersion.V2;" */ + "\n\t\tExtraModuleNames.AddRange(new string[] {";
 			string projectEditorTargetCS = "using UnrealBuildTool;\n\npublic class " + Path.GetFileNameWithoutExtension(projectFilePath) + "Editor" + "Target : TargetRules {\n\tpublic " + Path.GetFileNameWithoutExtension(projectFilePath) + "Editor" + "Target(TargetInfo Target) : base(Target) {\n\t\tType = TargetType.Editor;" /* + "\n\t\tDefaultBuildSettings = BuildSettingsVersion.V2;" */ + "\n\t\tExtraModuleNames.AddRange(new string[] {";
